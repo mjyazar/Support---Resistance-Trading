@@ -40,21 +40,21 @@ def fetch_data(symbol, timeframe, since):
 
             else:
                 # If fetch_ohlcv() returns an empty list, we've reached the most recent data
-                print("No more data to fetch. Reached the current time.")
+                print("\n   No more data to fetch. Reached the current time.")
                 break # Exit the loop
 
             # Wait a moment before the next request to avoid getting banned.
             time.sleep(binance.rateLimit / 1000)
 
         except ccxt.NetworkError as e:
-            print(f"  A network error occurred: {e}. Retrying in 2 seconds...")
+            print(f"\n   A network error occurred: {e}. Retrying in 2 seconds...")
             time.sleep(2)   # Wait before retrying
 
         except ccxt.ExchangeError as e:
-            print(f"  An exchange error occurred: {e}. Stopping.")
+            print(f"\n   An exchange error occurred: {e}. Stopping.")
             break # Exit on exchange errors
 
-    print("\nFetching complete.")
+    print("\n   Fetching complete.")
 
     return all_data
 
@@ -72,7 +72,7 @@ def save_data_to_csv(all_data, filename):
     data = data[['datetime', 'open', 'high', 'low', 'close', 'volume']]
 
     data.to_csv(filename, index=False) # index=False prevents pandas from writing a useless row index column.
-    print(f"Trades saved to {filename}")
+    print(f"   Trades saved to {filename}")
 
     return filename
 
