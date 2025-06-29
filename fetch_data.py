@@ -1,7 +1,7 @@
 import ccxt
 import pandas as pd
 import time
-from datetime import datetime, timedelta, timezone # UTC timezone...
+from datetime import datetime
 
 # kraken = ccxt.kraken({
 #     'apiKey': 'YOUR_PUBLIC_API_KEY',
@@ -16,7 +16,7 @@ def fetch_data(symbol, timeframe, since):
     limit = 1000 # Max candles per request for Binance
     all_data = []
 
-    since_datetime = datetime.now(timezone.utc) - timedelta(days=since)
+    since_datetime = datetime.strptime(since, "%Y-%m-%d")
     since_timestamp = int(since_datetime.timestamp() * 1000)
 
     while True:
@@ -40,7 +40,7 @@ def fetch_data(symbol, timeframe, since):
 
             else:
                 # If fetch_ohlcv() returns an empty list, we've reached the most recent data
-                print("  No more data to fetch. Reached the current time.")
+                print("No more data to fetch. Reached the current time.")
                 break # Exit the loop
 
             # Wait a moment before the next request to avoid getting banned.
@@ -79,12 +79,12 @@ def save_data_to_csv(all_data, filename):
 if __name__ == "__main__":
     symbol = 'BTC/USDT'
     timeframes = ["1m", "15m", "1h", "4h", "1d"]
-    days_to_fetch = 365
+    since = "2024-01-01"  # Start fetching data from this date
 
     for timeframe in timeframes:
         print(f"\nFetching data for {symbol} with timeframe {timeframe} from Binance...")
 
-        all_data = fetch_data(symbol, timeframe, days_to_fetch)
+        all_data = fetch_data(symbol, timeframe, since)
 
         filename = f"binance_BTC_USDT_ohlcv_{timeframe}.csv"
         save_data_to_csv(all_data, filename)
