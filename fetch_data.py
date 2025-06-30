@@ -86,5 +86,5 @@ if __name__ == "__main__":
 
         all_data = fetch_data(symbol, timeframe, since)
 
-        filename = f"data/binance_BTC_USDT_ohlcv_{timeframe}.csv"
-        save_data_to_csv(all_data, filename)
+        filepath = f"data/binance_{symbol.replace('/', '_')}_ohlcv_{timeframe}.csv"
+        save_data_to_csv(all_data, filepath)
