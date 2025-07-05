@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def calculate_volume_profile(data, number_bins=100):
+def calculate_volume_profile(data, bin_count=100):
 
     min_price = data['low'].min()
     max_price = data['high'].max()
@@ -9,12 +9,12 @@ def calculate_volume_profile(data, number_bins=100):
     print("Maximum price:", max_price)
 
     # Create price points for the bins
-    price_points = np.linspace(min_price, max_price, number_bins + 1)
+    price_points = np.linspace(min_price, max_price, bin_count + 1)
 
     # Volume bins needs to be 1 less than the number of points (i.e. blocks vs edges)
-    volume_bins = np.zeros(number_bins)
+    volume_bins = np.zeros(bin_count)
 
-    for bin in range(number_bins):
+    for bin in range(bin_count):
         # Relevant candles are those with low below the top bin, and high above bottom bin
         relevant_candles = data[(data["low"] < price_points[bin + 1]) & (data["high"] > price_points[bin])]
 
@@ -35,7 +35,7 @@ def calculate_volume_profile(data, number_bins=100):
     price_midpoint = (price_points[:-1] + price_points[bin + 1]) / 2
 
     volume_profile = pd.DataFrame({"price_midpoint": price_midpoint, 
-                            "volume": volume_bins})
+                                   "volume": volume_bins})
     
     return volume_profile
 
@@ -49,11 +49,7 @@ def find_peak_volume_bins(volume_profile, prominence_factor = 1.5):
     low_volume_bins = volume_profile[volume_profile["volume"] < (average_volume / prominence_factor)]
     
     nodes = {"poc": poc,
-             "high_volume_bins": high_volume_bins.to_list(),
-             "low_volume_bins": low_volume_bins.to_list()}
+             "high_volume_bins": high_volume_bins["price_midpoint"].to_list(),
+             "low_volume_bins": low_volume_bins["price_midpoint"].to_list()}
 
     return nodes
-
-
-def pivot_points(volume_profile, prominence_factor=1.5):
-    print()
