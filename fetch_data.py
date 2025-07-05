@@ -3,10 +3,8 @@ import pandas as pd
 import time
 from datetime import datetime
 
-# kraken = ccxt.kraken({
-#     'apiKey': 'YOUR_PUBLIC_API_KEY',
-#     'secret': 'YOUR_SECRET_PRIVATE_KEY',
-# })
+# https://github.com/ccxt/ccxt?tab=readme-ov-file#usage
+# https://docs.ccxt.com/#/
 
 def fetch_data(symbol, timeframe, since):
     """
