@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
 
 def calculate_volume_profile(data, bin_count=100):
 
@@ -53,3 +54,15 @@ def find_peak_volume_bins(volume_profile, prominence_factor = 1.5):
              "low_volume_bins": low_volume_bins["price_midpoint"].to_list()}
 
     return nodes
+
+
+def plot_volume_profile(main_data, nodes, filename, symbol):
+
+    fig = go.Figure(data=go.Candlestick(x=main_data.index,
+                                         open=main_data['open'],
+                                         high=main_data['high'],
+                                         low=main_data['low'],
+                                         close=main_data['close'],
+                                         name="Price"))
+    
+    
