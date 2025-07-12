@@ -3,45 +3,45 @@ import pandas as pd
 import time
 from datetime import datetime
 
+import config
 # https://github.com/ccxt/ccxt?tab=readme-ov-file#usage
 # https://docs.ccxt.com/#/
 
-def fetch_data(symbol, timeframe, since):
+def fetch_historical_ohlcv(symbol, timeframe, since):
     """
     Fetches historical OHLCV data and saves it to a CSV file.
     """
     binance = ccxt.binance()
     limit = 1000 # Max candles per request for Binance
-    all_data = []
 
+    # Convert the 'since' date from the config file to a timestamp
     since_datetime = datetime.strptime(since, "%Y-%m-%d")
     since_timestamp = int(since_datetime.timestamp() * 1000)
+
+    all_ohlcv = []
 
     while True:
         try:
             # Fetch ohlcv data from Binance
-
             ohlcv = binance.fetch_ohlcv(symbol, timeframe, since=since_timestamp, limit=limit)
 
             # Check if the API returned any data
-            if len(ohlcv):
-                all_data.extend(ohlcv)
+            if not ohlcv:
+                # No more data available
+                break
 
-                # Update the 'since' timestamp for the next iteration                
-                last_candle_timestamp = ohlcv[-1][0] # The first element in each ohlcv entry is the timestamp
-                since_timestamp = last_candle_timestamp + 1 # ...and set 'since' to that timestamp + 1 millisecond
+            all_ohlcv.extend(ohlcv)
 
-                first_date = datetime.fromtimestamp(all_data[0][0] / 1000)
-                last_date = datetime.fromtimestamp(all_data[-1][0] / 1000)
+            # Update the 'since' timestamp for the next iteration                
+            last_candle_timestamp = ohlcv[-1][0] # The first element in each ohlcv entry is the timestamp
+            since_timestamp = last_candle_timestamp + 1 # ...and set 'since' to that timestamp + 1 millisecond
 
-                print(f"   Fetched {len(all_data)} candles from {first_date} to {last_date}")
+            # Progress indicator
+            first_date = datetime.fromtimestamp(all_ohlcv[0][0] / 1000)
+            last_date = datetime.fromtimestamp(all_ohlcv[-1][0] / 1000)
+            print(f"   Fetched {len(all_ohlcv)} candles from {first_date} to {last_date}")
 
-            else:
-                # If fetch_ohlcv() returns an empty list, we've reached the most recent data
-                print("\n   No more data to fetch. Reached the current time.")
-                break # Exit the loop
-
-            # Wait a moment before the next request to avoid getting banned.
+            # Respect the API rate limit
             time.sleep(binance.rateLimit / 1000)
 
         except ccxt.NetworkError as e:
@@ -54,35 +54,47 @@ def fetch_data(symbol, timeframe, since):
 
     print("\n   Fetching complete.")
 
-    return all_data
+    return all_ohlcv
 
 
-def save_data_to_csv(all_data, filename):
+def main():
     """
-    Save the fetched data to a CSV file.
+    Main function to fetch and save historical OHLCV data for all symbols and timeframes defined in the config file.
     """
+    # Ensure the data directory exists, create it if it doesn't.
+    config.DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    data = pd.DataFrame(all_data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+    # Loop through all symbols and timeframes from the config file.
+    for symbol in config.SYMBOLS:
+        for timeframe in config.TIMEFRAMES:
+            print(f"\nProcessing: {symbol} - {timeframe}")
+            
+            # Construct the output file path using the config directory.
+            filepath = config.DATA_DIR / f"binance_{symbol.replace('/', '_')}_{timeframe}.csv"
 
-    # Convert timestamp to datetime
-    data['datetime'] = pd.to_datetime(data['timestamp'], unit='ms')
-    # Reorder columns for clarity
-    data = data[['datetime', 'open', 'high', 'low', 'close', 'volume']]
+            # Check if the data already exists to avoid re-downloading.
+            if filepath.exists():
+                print(f"Data already exists at '{filepath}'. Skipping.")
+                continue
 
-    data.to_csv(filename, index=False) # index=False prevents pandas from writing a useless row index column.
-    print(f"   Trades saved to {filename}")
+            # Fetch the data.
+            print(f"Fetching data from {config.SINCE_DATE}...")
+            ohlcv_data = fetch_historical_ohlcv(symbol, timeframe, config.SINCE_DATE)
 
-    return filename
+            # Save the data if any was fetched.
+            if ohlcv_data:
+                # Convert list to DataFrame and save
+                df = pd.DataFrame(ohlcv_data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+                df = df[['datetime', 'open', 'high', 'low', 'close', 'volume']]
+                df.to_csv(filepath, index=False)
+                print(f"Data for {symbol} - {timeframe} saved successfully.")
+            else:
+                print("No new data fetched.")
+
 
 if __name__ == "__main__":
-    symbol = 'BTC/USDT'
-    timeframes = ["1m", "15m", "1h", "4h", "1d"]
-    since = "2024-01-01"  # Start fetching data from this date
-
-    for timeframe in timeframes:
-        print(f"\nFetching data for {symbol} with timeframe {timeframe} from Binance...")
-
-        all_data = fetch_data(symbol, timeframe, since)
-
-        filepath = f"data/binance_{symbol.replace('/', '_')}_ohlcv_{timeframe}.csv"
-        save_data_to_csv(all_data, filepath)
+    main()
+    print("\nData fetching complete.")
+    print(f"Data files saved in: {config.DATA_DIR}")
+    print("You can now run the analysis script: 'python main_analysis.py'")
