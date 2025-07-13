@@ -7,9 +7,17 @@ import plotly.graph_objects as go
 
 def calculate_pivot_points(data):
     """
-    
-    """
+    Calculates traditional daily pivot points and their support/resistance levels.
 
+    It uses the previous day's data to calculate the current day's pivots by shifting the data by one period.
+
+    Args:
+        df: A DataFrame with 'high', 'low', 'close' columns, indexed by date.
+
+    Returns:
+        pd.DataFrame: The original DataFrame with new columns for pivot levels (pivot, r1, s1, r2, s2, r3, s3).
+    """
+    # Use .shift(1) to get the previous day's High, Low, and Close
     previous_high = data['high'].shift(1)
     previous_low = data['low'].shift(1)
     previous_close = data['close'].shift(1)
@@ -27,40 +35,3 @@ def calculate_pivot_points(data):
     data['s3'] = data['s1'] - (previous_high - previous_low)
 
     return data
-
-
-def plot_pivot_points(data, filename, symbol):
-    
-    fig = go.Figure(data=go.Candlestick(x=data.index,
-                                        open=data['open'],
-                                        high=data['high'],
-                                        low=data['low'],
-                                        close=data['close'],
-                                        name="Price"))
-
-    pivot_levels = {'pivot': {'color': 'blue', 'dash': 'solid'},
-                    'r1': {'color': 'red', 'dash': 'solid'},
-                    's1': {'color': 'green', 'dash': 'solid'},
-                    'r2': {'color': 'red', 'dash': 'solid'},
-                    's2': {'color': 'green', 'dash': 'solid'},
-                    'r3': {'color': 'red', 'dash': 'solid'},
-                    's3': {'color': 'green', 'dash': 'solid'}
-                    }
-    
-    for level, style in pivot_levels.items():
-        fig.add_trace(go.Scatter(x=data.index,
-                                 y=data[level],
-                                 mode='lines',
-                                 name=level.upper(),
-                                 line=dict(color=style['color'], dash=style['dash'])
-                                 ))
-
-    fig.update_layout(title=f'<b>{symbol} Daily Price and Pivot Points</b>',
-                      xaxis_title='Date',
-                      yaxis_title='Price (USDT)',
-                      xaxis_rangeslider_visible=False, # Hide the bulky range slider for a cleaner look
-                      template='plotly_white',
-                      legend_title="Levels"
-                      )
-
-    fig.show()
