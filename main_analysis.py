@@ -1,71 +1,90 @@
 import pandas as pd
-from pathlib import Path
+import logging
 
-# from analysis.volume_probability import calculate_volume_profile
-from analysis.volume_profile import calculate_volume_profile, find_peak_volume_bins, plot_volume_profile
+# Project's configuration settings
+import config
+
+# Import our custom analysis functions
+from analysis.volume_analysis import calculate_volume_profile, find_significant_levels
 from analysis.pivot_points import calculate_pivot_points, plot_pivot_points
-from analysis.price_action import calculate_fractals, plot_fractals
+from analysis.fractals import calculate_fractals
+
+
+def setup_logging():
+    """Configures the logging system."""
+    config.LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    log_file = config.LOGS_DIR / 'project.log'
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(module)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file, mode='a'), # 'a' for append
+            logging.StreamHandler()
+        ]
+    )
 
 
 def run_analysis():
     """
-    data_folder = Path("data")
-    data_files = list(data_folder.glob("*.csv"))
-    
-    
-    for file in data_files:
-        if not file.exists():
-            print(f"Error: Data file not found at {file}")
-            print("Please run fetch_data.py first.")
-            return
-    
-        data = pd.read_csv(file, parse_dates=["datetime"], set_index="datetime")
-
-        calculate_volume_profile(data)
+    Main function to load data and run multiple analysis methods using settings from the config.py file.
     """
-    data_folder = Path("data")
+    setup_logging()
+    logging.info("--- Starting Analysis Run ---")
 
-    symbol = "BTC/USDT"
-    file = data_folder / "binance_BTC_USDT_ohlcv_1m.csv"
-    file_name = file.name
-
-    print(f"Loading data from {file}...")
-    data = pd.read_csv(file, parse_dates=["datetime"], index_col="datetime")
-
-    # Run volume profile analysis
-    print("\nCalculating Volume Profile...")
-    profile = calculate_volume_profile(data, bin_count=200)
-
-    # Find the most significant levels from the profile.
-    levels = find_peak_volume_bins(profile, prominence_factor=2.0)
-    print(levels)
-    plot_volume_profile(data, levels, file_name, symbol)
-
-
-    print("\n--- Method 1: Volume Profile Analysis (on 1h data) ---")
-    print(f"Point of Control (POC): Price=${levels["poc"]["price_midpoint"]:.2f}, Volume={levels["poc"]["volume"]:.2f}")
+    symbol = config.SYMBOLS[0]  # Use the first symbol from the config
     
-    print(f"\nHigh Volume Nodes ({len(levels["high_volume_bins"])} levels found):")
-    print([f"${price:.2f}" for price in sorted(levels["high_volume_bins"])])
+    # --- Analysis 1: Volume Profile Analysis ---
+    logging.info(f"--- Running Analysis 1: Volume Profile Analysis (on {config.TIMEFRAMES[2]} data) ---")
+    data_file_1h = config.DATA_DIR / f"binance_{symbol.replace('/', '_')}_ohlcv_{config.TIMEFRAMES[2]}.csv"
+
+    if data_file_1h.exists():
+        logging.info(f"Loading (1h) data from {data_file_1h}...")
+        df_1h = pd.read_csv(data_file_1h, parse_dates=['datetime'])
+        
+        logging.info("Calculating Volume Profile...")
+        profile = calculate_volume_profile(df_1h, num_bins=config.VOLUME_BINS)
+        # levels: {poc: {price_midpoint, volume}, high_volume_bins: [price_midpoints], low_volume_bins: [price_midpoints]}
+        levels = find_significant_levels(profile, prominence_factor=config.VOLUME_PROMINENCE)
+
+        logging.info(f"Volume Profile POC: ${levels['poc']['price_midpoint']:.2f}")
+        logging.info(f"High Volume Nodes: {len(levels['high_volume_bins'])} levels found")
+        logging.info(f"Low Volume Nodes: {len(levels['low_volume_bins'])} levels found")
+    else:
+        logging.warning(f"{config.TIMEFRAMES[2]} data file not found. Skipping Volume Profile.")
+
+
+    # --- Analysis 2: Pivot Point Analysis ---
+    logging.info(f"--- Running Analysis 2: Pivot Point Analysis (on {config.TIMEFRAMES[4]} data) ---")
+    data_file_1d = config.DATA_DIR / f"binance_{symbol.replace('/', '_')}_ohlcv_{config.TIMEFRAMES[4]}.csv"
+    file_name_1d = data_file_1d.name
+
+    if data_file_1d.exists():
+        logging.info(f"Loading (1d) data from {data_file_1d}...")
+        df_1d = pd.read_csv(data_file_1d, parse_dates=['datetime'])
+
+        logging.info("Calculating Daily Pivot Points...")
+        pivots_df = calculate_pivot_points(df_1d.copy())
+
+        latest_pivots = pivots_df.iloc[-1]
+        logging.info("Latest Dynamic Pivot Levels (for today):")
+        logging.info(f"  Latest Dynamic Pivot Levels (for today): R1=${latest_pivots['r1']:.2f}, S1=${latest_pivots['s1']:.2f}")
+        # Plot the chart using the configured number of days
+    else:
+        logging.warning(f"{config.TIMEFRAMES[4]} data file not found. Skipping Pivot Points.")
+
+
+    # --- Analysis 3: Fractal Analysis ---
+    logging.info(f"--- Running Analysis 3: Fractal Analysis (on {config.TIMEFRAMES[4]} data) ---")
+    if data_file_1d.exists():
+        # We can reuse the daily DataFrame
+        fractals_df = calculate_fractals(df_1d.copy())
+
+        recent_highs = fractals_df.dropna(subset=['resistance']).tail(1)
+        logging.info(f"Most recent fractal high found at: ${recent_highs.iloc[0]['resistance']:.2f}")
+
+
+    logging.info("--- Analysis Run Finished ---")
     
-    print(f"\nLow Volume Nodes ({len(levels["low_volume_bins"])} levels found):")
-    print([f"${price:.2f}" for price in sorted(levels["low_volume_bins"])])
-
-    print("\n--- Method 2: Pivot Point Analysis (on 1d data) ---")
-    print("Calculating Daily Pivot Points...")
-
-
-    file_1d = data_folder / "binance_BTC_USDT_ohlcv_1d.csv"
-    data_1d = pd.read_csv(file_1d, parse_dates=["datetime"], index_col="datetime")
-    
-    pivots_data = calculate_pivot_points(data_1d)
-    plot_pivot_points(pivots_data, file_name, symbol)
-
-
-    print("\n--- Method 3: Fractal Analysis (on 1d data) ---")
-    fractals_data = calculate_fractals()
-    plot_fractals()
-
 
 if __name__ == "__main__":
     run_analysis()
