@@ -84,7 +84,7 @@ def find_significant_levels(volume_profile, prominence_factor = 1.5):
     low_volume_bins = volume_profile[volume_profile["volume"] < (average_volume / prominence_factor)]
     
     nodes = {"poc": poc,
-             "high_volume_bins": high_volume_bins["price_midpoint"].to_list(),
-             "low_volume_bins": low_volume_bins["price_midpoint"].to_list()}
+             "hvns": high_volume_bins["price_midpoint"].to_list(),
+             "lvns": low_volume_bins["price_midpoint"].to_list()}
 
     return nodes
