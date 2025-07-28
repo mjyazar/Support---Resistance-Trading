@@ -91,7 +91,7 @@ def main():
             logging.info(f"\nProcessing: {symbol} - {timeframe}")
             
             # Construct the output file path using the config directory.
-            filepath = config.DATA_DIR / f"binance_{symbol.replace('/', '_')}_{timeframe}.csv"
+            filepath = config.DATA_DIR / f"binance_{symbol.replace('/', '_')}_ohlcv_{timeframe}.csv"
 
             # Check if the data already exists to avoid re-downloading.
             if filepath.exists():
