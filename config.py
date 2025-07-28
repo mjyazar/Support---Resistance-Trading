@@ -11,7 +11,7 @@ LOGS_DIR = BASE_DIR / "logs"
 
 # --- DATA FETCHING ---
 # The list of cryptocurrency symbols to analyze.
-SYMBOLS = ["BTC/USDT"]
+SYMBOLS = ["ETH/USDT"]
 # The timeframes to download data for.
 TIMEFRAMES = ["1m", "15m", "1h", "4h", "1d"]
 # The start date for fetching historical data.
@@ -20,8 +20,8 @@ SINCE_DATE = "2024-01-01"
 
 # --- ANALYSIS PARAMETERS ---
 # Parameters for Volume Analysis
-VOLUME_BINS = 200 # Number of price bins for the volume profile.
-VOLUME_PROMINENCE = 2.0 # How much larger a peak must be to be a "High Volume Node".
+VOLUME_BINS = 100 # Number of price bins for the volume profile.
+VOLUME_PROMINENCE = 2.5 # How much larger a peak must be to be a "High Volume Node".
 
 
 # Parameters for Fractal Analysis

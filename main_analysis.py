@@ -9,6 +9,7 @@ from analysis.volume_analysis import calculate_volume_profile, find_significant_
 from analysis.pivot_points import calculate_pivot_points
 from analysis.fractals import calculate_fractals
 from analysis.oscillators import add_rsi
+from visualisation import plot_unified_chart
 
 
 def setup_logging():
@@ -39,7 +40,7 @@ def find_confluence_zones(levels, tolerance_percent=0.5):
 
     if not levels:
         return []
-
+    
     sorted_levels = sorted(levels, key=lambda x: x['price'])
 
     clusters = [] # Becomes a list of list of dictionaries
@@ -50,7 +51,7 @@ def find_confluence_zones(levels, tolerance_percent=0.5):
         cluster_base_price = current_cluster[0]['price']
         
         # Check if the current level is within the tolerance of the cluster's starting price
-        if (current_price - cluster_base_price) / cluster_base_price * 100 <= tolerance_percent:
+        if abs((current_price - cluster_base_price)) / cluster_base_price * 100 <= tolerance_percent:
             current_cluster.append(sorted_levels[i])
 
         else:
@@ -71,7 +72,7 @@ def find_confluence_zones(levels, tolerance_percent=0.5):
                     'sources': [level['source'] for level in cluster]} # Level is a dict
             
             confluence_zones.append(zone)
-            
+    
     return confluence_zones
 
 
@@ -83,15 +84,11 @@ def run_analysis():
     logging.info("--- Starting Analysis Run ---")
 
     symbol = config.SYMBOLS[0]  # Use the first symbol from the config
-    master_levels = []
-    
+    master_levels = {}
+
     # Load Data
     data_file_1h = config.DATA_DIR / f"binance_{symbol.replace('/', '_')}_ohlcv_1h.csv"
     data_file_1d = config.DATA_DIR / f"binance_{symbol.replace('/', '_')}_ohlcv_1d.csv"
-
-    if not data_file_1h.exists() or not data_file_1d.exists():
-        logging.error("Required data files not found. Please run fetch_data.py.")
-        return
 
     if not data_file_1h.exists() or not data_file_1d.exists():
         logging.error("Required data files not found. Please run fetch_data.py.")
@@ -103,45 +100,49 @@ def run_analysis():
 
     # Volume Profile Analysis
     logging.info(f"Running Volume Profile Analysis (on {config.TIMEFRAMES[2]} data)")
-    profile = calculate_volume_profile(df_1h, num_bins=config.VOLUME_BINS)
-    volume_levels = find_significant_levels(profile, prominence_factor=config.VOLUME_PROMINENCE)
-
+    volume_profile = calculate_volume_profile(df_1h, num_bins=config.VOLUME_BINS)
+    volume_levels = find_significant_levels(volume_profile, prominence_factor=config.VOLUME_PROMINENCE)
     logging.info(f"Volume Profile POC: ${volume_levels['poc']['price_midpoint']:.2f}")
     logging.info(f"High Volume Nodes: {len(volume_levels['hvns'])} levels found")
     logging.info(f"Low Volume Nodes: {len(volume_levels['lvns'])} levels found")
-
-    master_levels.append({'price': volume_levels['poc']['price_midpoint'], 'source': 'POC'})
-    for hvn in volume_levels['hvns']:
-        master_levels.append({'price': hvn, 'source': 'HVN'})
+    master_levels['poc'] = volume_levels['poc']['price_midpoint']
+    master_levels['hvns'] = volume_levels['hvns']
 
 
     # Pivot Point Analysis
     logging.info(f"Running Pivot Point Analysis (on {config.TIMEFRAMES[4]} data)")
     pivots_df = calculate_pivot_points(df_1d.copy())
     latest_pivots = pivots_df.iloc[-1]
-
     logging.info(f"Latest Dynamic Pivot Levels (for today): R1=${latest_pivots['r1']:.2f}, S1=${latest_pivots['s1']:.2f}")
-
-    for level_name in ['r3', 'r2', 'r1', 'pivot', 's1', 's2', 's3']:
-        master_levels.append({'price': latest_pivots[level_name], 'source': f"Pivot {level_name.upper()}"})
+    master_levels['pivots'] = pivots_df
 
 
     # Fractal Analysis
     logging.info(f"Running Fractal Analysis (on {config.TIMEFRAMES[4]} data)")
     fractals_df = calculate_fractals(df_1d.copy())
-    recent_highs = fractals_df.dropna(subset=['resistance']).tail(5)
-    recent_lows = fractals_df.dropna(subset=['support']).tail(5)
+    master_levels['fractals'] = fractals_df
 
-    for index, row in recent_highs.iterrows():
-        master_levels.append({'price': row['resistance'], 'source': 'Fractal High'})
 
-    for index, row in recent_lows.iterrows():
-        master_levels.append({'price': row['support'], 'source': 'Fractal Low'})
+    # Create a flat list from the master_levels dictionary ONLY for the confluence function
+    temp_level_list = []
+    temp_level_list.append({'price': master_levels['poc'], 'source': 'POC'})
+    for hvn in master_levels['hvns']:
+        temp_level_list.append({'price': hvn, 'source': 'HVN'})
+
+    latest_pivots = master_levels['pivots'].iloc[-1]
+    for level_name in ['r3', 'r2', 'r1', 'pivot', 's1', 's2', 's3']:
+        temp_level_list.append({'price': latest_pivots[level_name], 'source': f"Pivot {level_name.upper()}"})
+
+    for index, row in master_levels['fractals'].dropna(subset=['fractal_high']).iterrows():
+        temp_level_list.append({'price': row['fractal_high'], 'source': 'Fractal High'})
+
+    for index, row in master_levels['fractals'].dropna(subset=['fractal_low']).iterrows():
+        temp_level_list.append({'price': row['fractal_low'], 'source': 'Fractal Low'})
 
 
     # Find and Report Confluence Zones
     logging.info("Finding confluence zones...")
-    confluence_zones = find_confluence_zones(master_levels, tolerance_percent=0.5)
+    confluence_zones = find_confluence_zones(temp_level_list, tolerance_percent=0.5)
 
     if not confluence_zones:
         logging.info("No significant confluence zones found with the current settings.")
@@ -155,6 +156,9 @@ def run_analysis():
                          f"    Sources: {', '.join(zone['sources'])}")
 
     logging.info("Confluence Analysis Run Finished")
+    
+    logging.info("Generating unified analysis chart...")
+    plot_unified_chart(df_1h, master_levels, volume_profile, symbol)
 
 
 if __name__ == "__main__":
