@@ -40,7 +40,7 @@ def calculate_fractals(data):
 
     # Assign the high or low price to the new columns where the condition is True.
     # Non-fractal rows will automatically be filled with NaN (Not a Number).
-    data['resistance'] = data['high'][is_fractal_high]
-    data['support'] = data['low'][is_fractal_low]
+    data['fractal_high'] = data['high'][is_fractal_high]
+    data['fractal_low'] = data['low'][is_fractal_low]
 
     return data
