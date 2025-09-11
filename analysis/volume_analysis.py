@@ -54,7 +54,7 @@ def calculate_volume_profile(data, num_bins=100):
         # Assign the volume to the bin based on the overlap proportion
         bin_volumes[bin] = np.sum(relevant_candles["volume"] * (overlap_range / candle_range))
 
-    price_midpoint = (price_bins[:-1] + price_bins[bin + 1]) / 2
+    price_midpoint = (price_bins[:-1] + price_bins[1:]) / 2
 
     volume_profile = pd.DataFrame({"price_midpoint": price_midpoint, 
                                    "volume": bin_volumes})

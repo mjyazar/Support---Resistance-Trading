@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
 
 # https://www.investopedia.com/terms/p/pivotpoint.asp#toc-limitations-and-considerations
 # https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/pivot-points-resistance-support

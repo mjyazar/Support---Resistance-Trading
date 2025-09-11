@@ -1,21 +1,12 @@
 import pandas as pd
-import plotly.graph_objects as go
 
 def calculate_fractals(data):
     """"
+    Identifies bearish (up) and bullish (down) fractals in OHLC data.
+
     A bearish (up) fractal occurs at a candle if its high is the highest
     among a 5-candle sequence. A bullish (down) fractal occurs if its low
     is the lowest. This function uses a 5-period window (2 past, current, 2 future).
-    """
-
-    """
-    Identifies bearish (up) and bullish (down) fractals in OHLC data.
-
-    A bearish fractal marks a potential resistance level and occurs at a candle
-    if its high is the highest among a 5-candle sequence.
-
-    A bullish fractal marks a potential support level and occurs at a candle
-    if its low is the lowest among a 5-candle sequence.
 
     Args:
         data: A DataFrame with ohlcv data.

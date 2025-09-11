@@ -16,6 +16,7 @@ SYMBOLS = ["ETH/USDT"]
 TIMEFRAMES = ["1m", "15m", "1h", "4h", "1d"]
 # The start date for fetching historical data.
 SINCE_DATE = "2024-01-01"
+UNTIL = "2025-01-01 00:00:00"
 
 
 # --- ANALYSIS PARAMETERS ---
