@@ -1,58 +1,64 @@
-# crypto_analysis_project/backtester.py
-
+import talib
 import pandas as pd
-import numpy as np
 
-def run_vectorized_backtest(df, signal_col='signal', initial_capital=10000):
-    """
-    Runs a fast, vectorized backtest on a given DataFrame.
+from backtesting import Backtest, Strategy
+from backtesting.test import GOOG
+from backtesting.lib import crossover
 
-    Args:
-        df (pd.DataFrame): Must contain 'close' prices and a signal column.
-        signal_col (str): The name of the column containing the trading signal (1 for long, -1 for short, 0 for flat).
-        initial_capital (float): The starting capital.
 
-    Returns:
-        pd.Series: A series containing key performance metrics.
-    """
+import config
+from main_analysis import run_analysis
 
-    # 1. Determine positions based on the signal
-    # We shift the signal by 1 to ensure we trade on the NEXT candle's open, avoiding lookahead bias.
-    # A signal generated at the close of day T is used to take a position for day T+1.
-    positions = df[signal_col].shift(1).fillna(0)
+df_1h_backtesting, confluence_zones = run_analysis()
+print(confluence_zones)
 
-    # 2. Calculate daily returns of the asset
-    daily_returns = df['close'].pct_change()
+symbol = "ETH/USDT"  # Use the first symbol from the config
+data_file_1h = config.DATA_DIR / f"binance_{symbol.replace('/', '_')}_ohlcv_1h.csv"
+df_1h = pd.read_csv(data_file_1h, parse_dates=['datetime'])
+df_1h.set_index("datetime", inplace=True)
+df_1h.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+print(df_1h)
 
-    # 3. Calculate strategy returns
-    # The return is the position taken (-1, 0, or 1) multiplied by that day's return.
-    strategy_returns = positions * daily_returns
 
-    # 4. Calculate the cumulative equity curve
-    cumulative_returns = (1 + strategy_returns).cumprod()
-    equity_curve = initial_capital * cumulative_returns
+class RsiOscillator(Strategy):
 
-    # --- Performance Metrics ---
-    total_return = (equity_curve.iloc[-1] / initial_capital) - 1
-    annualized_return = (1 + total_return) ** (365 / len(df)) - 1
+    upper_bound = 70
+    lower_bound = 30
+    rsi_window = 14
     
-    annualized_volatility = strategy_returns.std() * np.sqrt(365)
-    
-    # Assume risk-free rate is 0 for simplicity
-    sharpe_ratio = annualized_return / annualized_volatility if annualized_volatility != 0 else 0
-    
-    # Max Drawdown
-    previous_peaks = equity_curve.cummax()
-    drawdown = (equity_curve - previous_peaks) / previous_peaks
-    max_drawdown = drawdown.min()
+    def init(self):
+        self.rsi = self.I(talib.RSI, self.data.Close, self.rsi_window)
 
-    report = {
-        "Total Return": f"{total_return:.2%}",
-        "Annualized Return": f"{annualized_return:.2%}",
-        "Annualized Volatility": f"{annualized_volatility:.2%}",
-        "Max Drawdown": f"{max_drawdown:.2%}",
-        "Sharpe Ratio": f"{sharpe_ratio:.2f}",
-        "Final Equity": f"${equity_curve.iloc[-1]:,.2f}"
-    }
+    def next(self):
+        
+        # if first series is bigger than second series, sell
+        # i.e. rsi is above upper bound, sell
+        if crossover(self.rsi, self.upper_bound):
+            self.position.close()
 
-    return pd.Series(report)
+        # if lower bound is above rsi, buy
+        elif crossover(self.lower_bound, self.rsi):
+            self.buy()
+
+
+bt = Backtest(GOOG, RsiOscillator, cash=100000, commission=.002, exclusive_orders=True, finalize_trades=True)
+
+stats = bt.run()
+bt.plot()
+print(stats)
+
+returns = stats["Return [%]"]
+
+rsi_window = [i for i in range(1, 25)]
+
+
+stats = bt.optimize(upper_bound=range(50, 85, 5),
+                    lower_bound=range(10, 45, 5),
+                    rsi_window=range(10, 30, 2),
+                    maximize='Return [%]',
+                    constraint=lambda param: param.upper_bound - param.lower_bound >= 20,
+                    return_heatmap=True)
+
+bt.plot(results=stats, )
+
+print(stats)

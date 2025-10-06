@@ -8,7 +8,7 @@ import config
 from analysis.volume_analysis import calculate_volume_profile, find_significant_levels
 from analysis.pivot_points import calculate_pivot_points
 from analysis.fractals import calculate_fractals
-from backtesting1 import backtest
+from backtesting_deneme import backtesting
 # from visualisation import plot_unified_chart
 
 

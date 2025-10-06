@@ -21,7 +21,7 @@ def setup_logging():
         ]
     )
 
-def backtest(ohlcv_data, confluence_zones):
+def backtesting(ohlcv_data, confluence_zones):
     """
     Main function to run the backtest.
     """
